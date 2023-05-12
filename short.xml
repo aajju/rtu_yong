@@ -1,0 +1,11 @@
+xmlText=
+<XML>
+<detector>
+	<siteId>gumdan01</siteId>
+	<chNum>2</chNum>
+	<detNum>2</detNum>
+	<status>2</status>
+	<distance>0</distance>
+	<btAmt>0</btAmt>
+</detector>
+</XML>
