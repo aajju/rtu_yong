@@ -8,7 +8,7 @@ import copy
 import json
 import re
 import subprocess
-
+import config
 
 # 이것만 바꾸면 됨
 siteId_string = "boryeong22"     # 실제 현장 데이터 보내는 곳(코위드원)
@@ -213,7 +213,7 @@ def restart_code():
 
 
 def send_slack(payload):
-    webhook_url = "https://hooks.slack.com/services/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"
+    webhook_url = config.SLACK_WEBHOOK_URL
     response = requests.post(
         webhook_url, data=json.dumps(payload), headers={"Content-Type": "application/json"}
     )
