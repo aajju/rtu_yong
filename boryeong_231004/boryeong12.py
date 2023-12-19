@@ -5,11 +5,10 @@ import requests
 import serial
 import time
 import copy
-
 import json
+import re
+import subprocess
 
-
-from rtu_sms import send_sms
 
 # 2022.8.22
 # BECS, 3 Detectors, 1 channel
@@ -17,37 +16,24 @@ from rtu_sms import send_sms
 # 2023.3.21
 # BECS, 7 Detectors, 5 channel
 
+# 2023.5.17
+# BECS, 7 Detectors, 5 channel
+# add slack,  remove sms
+
+# 2023.6.1
+# BECS, 2 Det, 4 channel
+# always OK
+
 # Detector Value
-siteId_string = "move01"
+siteId_string = "boryeong12"
+#siteId_string = "bioptech01"
 status_string = "1"
-TimeInterval = 5 # 60 x 5sec(0.1sec x 5 det x 10 times(MAX_DOUBLE_CHECK))  x 2ch(com3,com4) = 600sec = 10min
+TimeInterval = 10 # 얼마인지 체크 필요
 
 # Waiting count_times for valid status
 MAX_DOUBLE_CHECK = 2   #60 
-#MAX_DOUBLE_CHECK_SMS = 180  # for 3 min waiting for LC  
-MAX_DOUBLE_CHECK_SMS = 2  #120  # for 3 min waiting for LC  
-MAX_SMS_PER_DAY = 100     # Maximum SMS per Day(24h)
-
-MAX_CH = 5
-MAX_DET =7
-
-
-# 인커밍 웹훅 URL
-webhook_url = (
-    "https://hooks.slack.com/services/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"
-)
-
-# # slack 보낼 메시지
-# webhook_message = {
-#     "attachments": [
-#         {
-#             "color": "#FF0000",  # 색상을 지정합니다. 여기서는 빨간색으로 지정합니다.
-#             "title": "이벤트 발생",
-#             "text": "ㅇㅇㅇㅇㅇㅇ장비--test",
-#         }
-#     ]
-# }
-
+MAX_CH = 4
+MAX_DET =2
 
 
 url = 'http://3.38.180.149:8080/dtxiot/sensor/add'
@@ -68,6 +54,8 @@ xml_text_tail = "</XML>"
 xml_det_header = "<detector>"
 xml_det_tail = "</detector>"
 
+xml_result = ""
+
 #LC Tlanslation
 ref_hz = (105920, 75410, 62080, 54850, 50280, 46840, 44380, 42440, 40930, 39610, 38480, 37530, 36720, 36000, 35300, 35040)
 
@@ -75,87 +63,131 @@ SERIALPORT = ("/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2")   #tuple
 g_serial_port = ["ser1","ser2","ser3"]                          #list
 
 #CH x DET XML TEXT
-g_xml_text = [  ["ch1_det1", "ch1_det2", "ch1_det3", "ch1_det4", "ch1_det5", "ch1_det6", "ch1_det7"], 
-                ["ch2_det1", "ch2_det2", "ch2_det3", "ch2_det4", "ch2_det5", "ch2_det6", "ch2_det7"], 
-                ["ch3_det1", "ch3_det2", "ch3_det3", "ch3_det4", "ch3_det5", "ch3_det6", "ch3_det7"], 
-                ["ch4_det1", "ch4_det2", "ch4_det3", "ch4_det4", "ch4_det5", "ch4_det6", "ch4_det7"], 
-                ["ch5_det1", "ch5_det2", "ch5_det3", "ch5_det4", "ch5_det5", "ch5_det6", "ch5_det7"], 
-               ] 
+g_xml_text = [  ["ch1_det1", "ch1_det2", ], 
+                ["ch2_det1", "ch2_det2", ], 
+                ["ch3_det1", "ch3_det2", ],
+                ["ch4_det1", "ch4_det2", ]
+                ]
 
 #CH x DET Distance Data
-g_distance_val_old = [  ["ch1_det1", "ch1_det2", "ch1_det3", "ch1_det4", "ch1_det5", "ch1_det6", "ch1_det7"], 
-                    ["ch2_det1", "ch2_det2", "ch2_det3", "ch2_det4", "ch2_det5", "ch2_det6", "ch2_det7"], 
-                    ["ch3_det1", "ch3_det2", "ch3_det3", "ch3_det4", "ch3_det5", "ch3_det6", "ch3_det7"], 
-                    ["ch4_det1", "ch4_det2", "ch4_det3", "ch4_det4", "ch4_det5", "ch4_det6", "ch4_det7"], 
-                    ["ch5_det1", "ch5_det2", "ch5_det3", "ch5_det4", "ch5_det5", "ch5_det6", "ch5_det7"], 
+g_distance_val_old = [  ["ch1_det1", "ch1_det2", ], 
+                        ["ch2_det1", "ch2_det2", ], 
+                        ["ch3_det1", "ch3_det2", ],
+                        ["ch4_det1", "ch4_det2", ]
                    ] 
-
-g_distance_val = [  ["576", "610", "282", "350", "590", "838", "0"], 
-                    ["576", "200", "282", "735", "590", "838", "0"], 
-                    ["150", "610", "282", "735", "333", "838", "0"], 
-                    ["576", "610", "282", "735", "590", "838", "0"], 
-                    ["576", "610", "282", "735", "590", "838", "0"], 
+g_distance_val = [  ["750", "0",], 
+                    ["750", "0",], 
+                    ["800", "0",], 
+                    ["800", "0",] 
                    ] 
 
 #CH x DET Volt Data
-g_volt_val = [  ["ch1_det1", "ch1_det2", "ch1_det3", "ch1_det4", "ch1_det5", "ch1_det6", "ch1_det7"], 
-                ["ch2_det1", "ch2_det2", "ch2_det3", "ch2_det4", "ch2_det5", "ch2_det6", "ch2_det7"], 
-                ["ch3_det1", "ch3_det2", "ch3_det3", "ch3_det4", "ch3_det5", "ch3_det6", "ch3_det7"], 
-                ["ch4_det1", "ch4_det2", "ch4_det3", "ch4_det4", "ch4_det5", "ch4_det6", "ch4_det7"], 
-                ["ch5_det1", "ch5_det2", "ch5_det3", "ch5_det4", "ch5_det5", "ch5_det6", "ch5_det7"], 
-               ] 
+g_volt_val = [  ["ch1_det1", "ch1_det2", ], 
+                ["ch2_det1", "ch2_det2", ],  
+                ["ch3_det1", "ch3_det2", ],
+                ["ch4_det1", "ch4_det2", ]
+                ] 
+
 
 #CH x DET DC Volt Data
-g_dc_val =   [  ["ch1_det1", "ch1_det2", "ch1_det3", "ch1_det4", "ch1_det5", "ch1_det6", "ch1_det7"], 
-                ["ch2_det1", "ch2_det2", "ch2_det3", "ch2_det4", "ch2_det5", "ch2_det6", "ch2_det7"], 
-                ["ch3_det1", "ch3_det2", "ch3_det3", "ch3_det4", "ch3_det5", "ch3_det6", "ch3_det7"], 
-                ["ch4_det1", "ch4_det2", "ch4_det3", "ch4_det4", "ch4_det5", "ch4_det6", "ch4_det7"], 
-                ["ch5_det1", "ch5_det2", "ch5_det3", "ch5_det4", "ch5_det5", "ch5_det6", "ch5_det7"], 
+g_dc_val =   [  ["ch1_det1", "ch1_det2", ], 
+                ["ch2_det1", "ch2_det2", ],  
+                ["ch3_det1", "ch3_det2", ],
+                ["ch4_det1", "ch4_det2", ]
                ] 
 
 #CH x DET AC Volt Data
-g_ac_val =   [  ["ch1_det1", "ch1_det2", "ch1_det3", "ch1_det4", "ch1_det5", "ch1_det6", "ch1_det7"], 
-                ["ch2_det1", "ch2_det2", "ch2_det3", "ch2_det4", "ch2_det5", "ch2_det6", "ch2_det7"], 
-                ["ch3_det1", "ch3_det2", "ch3_det3", "ch3_det4", "ch3_det5", "ch3_det6", "ch3_det7"], 
-                ["ch4_det1", "ch4_det2", "ch4_det3", "ch4_det4", "ch4_det5", "ch4_det6", "ch4_det7"], 
-                ["ch5_det1", "ch5_det2", "ch5_det3", "ch5_det4", "ch5_det5", "ch5_det6", "ch5_det7"], 
+g_ac_val =   [  ["ch1_det1", "ch1_det2", ], 
+                ["ch2_det1", "ch2_det2", ],  
+                ["ch3_det1", "ch3_det2", ],
+                ["ch4_det1", "ch4_det2", ]
                ] 
 
 #CH x DET Status Data
-g_status_val = [["2", "2", "2", "2", "2", "2", "2"], 
-                ["2", "2", "2", "2", "2", "2", "2"], 
-                ["2", "2", "2", "2", "2", "2", "2"], 
-                ["2", "2", "2", "2", "2", "2", "2"], 
-                ["2", "2", "2", "2", "2", "2", "2"], 
-               ] 
+g_status_val = [["2", "2", ], 
+                ["2", "2", ], 
+                ["1", "1", ], 
+                ["1", "1", ]
+                ]  
 
 #CH x DET Status Data Saved
-g_status_saved_val = [  ["2", "2", "2", "2", "2", "2", "2"], 
-                        ["2", "2", "2", "2", "2", "2", "2"], 
-                        ["2", "2", "2", "2", "2", "2", "2"], 
-                        ["2", "2", "2", "2", "2", "2", "2"], 
-                        ["2", "2", "2", "2", "2", "2", "2"], 
+g_status_saved_val = [  ["2", "2", ], 
+                        ["2", "2", ], 
+                        ["1", "1", ], 
+                        ["1", "1", ]
                         ] 
 
+g_prev_slack = ["x","x","x","x"]  # 채널 개수만큼
+
 g_double_check_count = 0
-g_max_sms_per_day = 0
 g_prev_time = 0
 g_cur_time = 0
-g_slack_count =0
 
-g_sms_str = [["CH_NUM1:detector1:status2", "CH_NUM1:detector2:status2", "CH_NUM1:detector3:status2", "CH_NUM1:detector4:status2", "CH_NUM1:detector5:status2", "CH_NUM1:detector6:status2", "CH_NUM1:detector7:status2"], 
-                ["CH_NUM2:detector1:status2", "CH_NUM2:detector2:status2", "CH_NUM2:detector3:status2", "CH_NUM2:detector4:status2", "CH_NUM2:detector5:status2", "CH_NUM2:detector6:status2", "CH_NUM2:detector7:status2"], 
-                ["CH_NUM3:detector1:status2", "CH_NUM3:detector2:status2", "CH_NUM3:detector3:status2", "CH_NUM3:detector4:status2", "CH_NUM3:detector5:status2", "CH_NUM3:detector6:status2", "CH_NUM3:detector7:status2"], 
-                ["CH_NUM4:detector1:status2", "CH_NUM4:detector2:status2", "CH_NUM4:detector3:status2", "CH_NUM4:detector4:status2", "CH_NUM4:detector5:status2", "CH_NUM4:detector6:status2", "CH_NUM4:detector7:status2"], 
-                ["CH_NUM5:detector1:status2", "CH_NUM5:detector2:status2", "CH_NUM5:detector3:status2", "CH_NUM5:detector4:status2", "CH_NUM5:detector5:status2", "CH_NUM5:detector6:status2", "CH_NUM5:detector7:status2"], 
-               ] 
+g_slack_err_count = 0
 
-g_sms_str_saved = [["CH_NUM1:detector1:status2", "CH_NUM1:detector2:status2", "CH_NUM1:detector3:status2", "CH_NUM1:detector4:status2", "CH_NUM1:detector5:status2", "CH_NUM1:detector6:status2", "CH_NUM1:detector7:status2"], 
-                ["CH_NUM2:detector1:status2", "CH_NUM2:detector2:status2", "CH_NUM2:detector3:status2", "CH_NUM2:detector4:status2", "CH_NUM2:detector5:status2", "CH_NUM2:detector6:status2", "CH_NUM2:detector7:status2"], 
-                ["CH_NUM3:detector1:status2", "CH_NUM3:detector2:status2", "CH_NUM3:detector3:status2", "CH_NUM3:detector4:status2", "CH_NUM3:detector5:status2", "CH_NUM3:detector6:status2", "CH_NUM3:detector7:status2"], 
-                ["CH_NUM4:detector1:status2", "CH_NUM4:detector2:status2", "CH_NUM4:detector3:status2", "CH_NUM4:detector4:status2", "CH_NUM4:detector5:status2", "CH_NUM4:detector6:status2", "CH_NUM4:detector7:status2"], 
-                ["CH_NUM5:detector1:status2", "CH_NUM5:detector2:status2", "CH_NUM5:detector3:status2", "CH_NUM5:detector4:status2", "CH_NUM5:detector5:status2", "CH_NUM5:detector6:status2", "CH_NUM5:detector7:status2"], 
-               ] 
+g_slack_err_count_integrity = 0
+
+
+
+def restart_code():
+    # 이 함수에서는 전역 변수를 초기화하거나 다른 초기화 작업을 수행할 수 있습니다.
+    # 예를 들어, 전역 변수를 초기화하는 코드를 추가할 수 있습니다.
+    global g_slack_err_count
+    global g_slack_err_count_integrity
+
+    print("restart_code()")
+
+    print(g_slack_err_count, g_slack_err_count_integrity)
+
+    g_slack_err_count = 0
+    g_slack_err_count_integrity = 0
+
+    print(g_slack_err_count, g_slack_err_count_integrity)
+
+
+    
+    # 코드를 재시작하기 위한 명령어 또는 스크립트를 실행합니다.
+    # 예를 들어, subprocess 모듈을 사용하여 파이썬 스크립트를 실행할 수 있습니다.
+    subprocess.call(["python2", "boryeong12.py"])
+
+    # 다음 날 같은 시간에 코드를 재시작하기 위해 스케줄을 다시 설정합니다.
+    # scheduler.enter(1 * 60 * 60, 1, restart_code, ())
+
+
+def send_slack(payload):
+    webhook_url = "https://hooks.slack.com/services/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"
+    response = requests.post(
+        webhook_url, data=json.dumps(payload), headers={"Content-Type": "application/json"}
+    )
+    if response.status_code != 200:
+        raise ValueError("Request to Slack returned an error", response.status_code, response.text)
+
+
+# 주어진 문자열에서 XML 태그 내용을 추출하는 함수
+def extract_value(xml_text, tag_name):
+    pattern = "<{0}>(.*?)</{0}>".format(tag_name)
+    match = re.findall(pattern, xml_text)
+    return match
+
+
+# 주어진 XML 텍스트에서 chNum, detNum, status 값을 추출하는 함수
+def extract_data(xml_text):
+    chnum_list = extract_value(xml_text, "chNum")
+    detnum_list = extract_value(xml_text, "detNum")
+    status_list = extract_value(xml_text, "status")
+    return chnum_list, detnum_list, status_list
+
+
+# 결과를 하나의 문자열로 만드는 함수
+def format_output(chnum_list, detnum_list, status_list):
+    output = ""
+    for chnum, detnum, status in zip(chnum_list, detnum_list, status_list):
+        output += "chNum: {0}\n".format(chnum)
+        output += "detNum: {0}\n".format(detnum)
+        output += "status: {0}\n".format(status)
+        output += "--------------------\n"
+    return output
+
 
 
 #Hz to Distance Translation
@@ -205,6 +237,9 @@ def make_xml_text(ch_num, det_num, distance, volt, dc, ac, status):
     global siteId_string, status_string
     global g_xml_text
 
+    if ch_num == "3" or ch_num =="4":
+        status = "1"
+
     xml_text_siteId = "<siteId>" + siteId_string + "</siteId>"
     # First ch, det : ch_num = 1, det_num = 0 : Start (2021/7/29)
     xml_text_chNum = "<chNum>" + ch_num + "</chNum>"
@@ -216,7 +251,7 @@ def make_xml_text(ch_num, det_num, distance, volt, dc, ac, status):
     xml_text_dc = "<dc>" + dc + "</dc>"
     xml_text_ac = "<ac>" + ac + "</ac>"
 
-    xml_full_string =   xml_text_header + xml_det_header + \
+    xml_full_string =   xml_det_header + \
                         xml_text_siteId + \
                         xml_text_chNum + \
                         xml_text_detNum + \
@@ -225,16 +260,12 @@ def make_xml_text(ch_num, det_num, distance, volt, dc, ac, status):
                         xml_text_btAmt + \
                         xml_text_dc + \
                         xml_text_ac + \
-                        xml_det_tail + xml_text_tail 
+                        xml_det_tail
 
     g_xml_text[int(ch_num)-1][int(det_num)-1] = xml_full_string
 
+    return xml_full_string
 
-#Slack(SMS) Text Out
-def make_slack_text(ch_num, det_num, status):
-    global g_sms_str
-    
-    g_sms_str[ch_num-1][det_num-1] = "CH_NUM" + str(ch_num) + ":"+"detector" + str(det_num) + ":"+"status" + status
 
 
 #Serial Port Initialize
@@ -265,8 +296,12 @@ def serial_close(serial_ch):
 def clear_status_val(ch_num):
     global g_status_val
     
-    for i in range(0, MAX_DET):  # max 7 detector per channel
-        g_status_val[ch_num][i] = "2"
+    if ch_num ==0 or ch_num ==1: #ch1
+        for i in range(0, MAX_DET):  # max 7 detector per channel
+            g_status_val[ch_num][i] = "2"
+    if ch_num ==2 or ch_num ==3: #ch2
+        for i in range(0, MAX_DET):  # max 7 detector per channel
+            g_status_val[ch_num][i] = "1"   
 
 #Compare Status Change
 def check_status_change(ch_num):
@@ -282,23 +317,6 @@ def check_status_change(ch_num):
 
 
 
-#Init g_sms_str value
-def clear_g_sms_str():
-    global g_sms_str
-
-    for i in range(0, MAX_CH):
-        for j in range(0, MAX_DET):
-            g_sms_str[i][j] = (
-                "CH_NUM"
-                + str(i + 1)
-                + ":"
-                + "detector"
-                + str(j + 1)
-                + ":"
-                + "status"
-                + "2"
-            )
-
 #Init g_xml_text
 def clear_xml_text():
     for i in range(0, MAX_CH):
@@ -308,7 +326,6 @@ def clear_xml_text():
     print ("1111111111111111111111111111111111111111111111111")
     print ("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
     print ("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
-
 
 
 ### Check Integer string
@@ -363,10 +380,11 @@ def get_sensor_data(serial_ch, ch_num):
     global g_status_saved_val
     global g_xml_send
     global g_double_check_count
-    global g_sms_str
-    global g_sms_str_saved
-    global g_max_sms_per_day
-    global g_slack_count
+
+    global g_slack_err_count
+    global g_slack_err_count_integrity
+
+
 
     if g_serial_port[serial_ch].isOpen():
         try:
@@ -374,7 +392,6 @@ def get_sensor_data(serial_ch, ch_num):
             g_serial_port[serial_ch].flushOutput()
 
             local_count = 0
-            g_slack_count = 0
 
             while True:
                 #cmd_ch = "0" + str(ch_num + 2)          #CH3 is first ch(ch_num = 1) for JNC
@@ -392,14 +409,43 @@ def get_sensor_data(serial_ch, ch_num):
                 if ret == "" :
                     time.sleep(0.5)
                     local_count = local_count + 1
-                    print ("Not response : "+str(local_count))
+                    print ("Not response : "+str(local_count) +"," + str(g_slack_err_count))
+                    if (local_count == 9 and g_slack_err_count <5):
+                        g_slack_err_count += 1
+                        payload = {
+                            "attachments": [
+                                {
+                                    "color": "#FF00FF",  # 색상을 지정합니다. 여기서는 보라색으로 지정합니다.
+                                    "title": "장비 문제 - 시흥 160m 장비",
+                                    "text": "Not response : "+ str(g_slack_err_count) + " - 5번까지 출력",
+                                }
+                            ]
+                        }
+                        send_slack(payload)
+                        
+
                     if (local_count >= 10):
                         break
                     continue
 
+
                 # Check Data Integrity
                 if (check_integrity(ret) == False):
                     #print ("Data Integrity Error")
+                    if (g_slack_err_count_integrity < MAX_DET):
+                        g_slack_err_count_integrity += 1
+
+                        payload = {
+                            "attachments": [
+                                {
+                                    "color": "#FF00FF",  # 색상을 지정합니다. 여기서는 보라색으로 지정합니다.
+                                    "title": "데이터 오류 - 시흥 160m 장비",
+                                    "text": "Check integrity : "+ str(g_slack_err_count_integrity),
+                                }
+                            ]
+                        }
+                        send_slack(payload)
+
                     time.sleep(0.5)
                     continue
 
@@ -421,8 +467,7 @@ def get_sensor_data(serial_ch, ch_num):
                 det_num_str = str(det_num_int)  #convert int to string
 
                 #Sometimes Get Error    2020/6/29
-                if det_num_int > 7 or det_num_int < 1: # for BECS 7 Detector
-                #if det_num_int > 3 or det_num_int < 1: # for BECS 3 Detector
+                if det_num_int > MAX_DET or det_num_int < 1: # for BECS 7 Detector
                     print "Serial Return Value Error(det_num):", ret
                     time.sleep(0.5)
                     continue
@@ -446,10 +491,11 @@ def get_sensor_data(serial_ch, ch_num):
 
                 distance = get_distance(lc_hz)
                 #distance_str = str(distance) # for JNC
-                distance_str = str(lc_hz) # for BECS
-                
-                # Set Default Value (bioptech 2023.4.18)
-                distance_str = g_distance_val[ch_num_int-1][det_num_int-1]
+                # distance_str = str(lc_hz) # for BECS
+                distance_str = str(min(lc_hz, g_distance_val[ch_num_int-1][det_num_int-1])) # 벡스랑 기본값 비교
+
+                # # Set Default Value (bioptech 2023.4.18)
+                # distance_str = g_distance_val[ch_num_int-1][det_num_int-1]
 
                 
                 g_distance_val[ch_num_int-1][det_num_int-1] = distance_str
@@ -457,11 +503,11 @@ def get_sensor_data(serial_ch, ch_num):
                 g_status_val[ch_num_int-1][det_num_int-1] = "1" #set status "1" for valid detector, channel
 
 
+                #print "serial :[", serial_ch, "], ", "ch_num : ", ch_num_int-1, ", det_num : ", det_num_int-1, ", det_str : ", det_num_str
+
                 #ch_num = 1, det_num = 0 : Start
                 if det_num_int > 0:
                     make_xml_text(ch_num_str, det_num_str, distance_str, volt_str, dc_str, ac_str, "1")
-                    make_slack_text(ch_num_int,det_num_int,"1")
-
 
                 time.sleep(0.3)
 
@@ -471,57 +517,15 @@ def get_sensor_data(serial_ch, ch_num):
 
                     if g_double_check_count >= MAX_DOUBLE_CHECK :
                         if check_status_change(ch_num_int-1) == 1:          #if status change, xml transfer immediately
-                            print (ch_num_str+"                     ##### Status Change #####")
-
-                            print ("                     ##### g_sms_str #####")
-                            print(g_sms_str[ch_num_int-1])
-                            print ("                     ##### g_sms_str_saved #####")
-                            print(g_sms_str_saved[ch_num_int-1])
-
-                            g_sms_str_saved = copy.deepcopy(g_sms_str)
-                            
-                            g_slack_count = g_slack_count + 1
-                            
-                            print("g_slack_count ",g_slack_count)
-
-                            sms_mesg =  g_sms_str[ch_num_int-1][0] + "\r\n" + \
-                                        g_sms_str[ch_num_int-1][1] + "\r\n" + \
-                                        g_sms_str[ch_num_int-1][2] + "\r\n" + \
-                                        g_sms_str[ch_num_int-1][3] + "\r\n" + \
-                                        g_sms_str[ch_num_int-1][4] + "\r\n" + \
-                                        g_sms_str[ch_num_int-1][5] + "\r\n" + \
-                                        g_sms_str[ch_num_int-1][6]
-                            payload = {
-                                "text": "CH"+str(ch_num_int) + "\r\n"+sms_mesg
-                            }
-
-                            if g_slack_count > MAX_CH:
-                                print("send Slack msg- CH"+ch_num_str)
-
-                                # JSON으로 변환하여 POST 요청 보내기
-                                response = requests.post(
-                                    webhook_url, data=json.dumps(payload), headers={"Content-Type": "application/json"}
-                                )
-
-                                # 요청 결과 확인하기
-                                if response.status_code != 200:
-                                    raise ValueError(
-                                        "Request to Slack returned an error " + response.status_code + " " +response.text
-                                    )
+                            print ("CH : "+ch_num_str+"   ##### Status Change #####")
                             g_xml_send = 1
-
                         else:
-                            print (ch_num_str+"                     $$$$$ Same Status $$$$$")
-                            print ("                     ##### g_sms_str #####")
-                            print(g_sms_str[ch_num_int-1])
-                            print ("                     ##### g_sms_str_saved #####")
-                            print(g_sms_str_saved[ch_num_int-1])
+                            print ("                     $$$$$ Same Status $$$$$")
+
                         clear_status_val(ch_num_int-1)                      #set all status to "2"
                         g_double_check_count = 0
 
-
                         break       # det_num == 1 and count == MAX
-
 
 
         except Exception as e:
@@ -538,26 +542,21 @@ serial_init(0)
 #serial_init(2)
 count = 0
 g_xml_send = 0
-g_max_sms_per_day = 0
 g_prev_time = time.time()
 
 
 clear_xml_text()
 
-clear_g_sms_str()
-
 #max detector number = 7, read 5 times for each CH
 while True:
     ##### ttyUSB0 #####
     ### for BECS
-    # for i in (0, MAX_CH):
-    #    get_sensor_data(0, i)       #ttyUSB0 0.1sec x 5 det x 10 repeat = 5sec
-
-    get_sensor_data(0, 1)       # 0.1sec x 5 det x 10 repeat = 5sec
+    get_sensor_data(0, 1)       #ttyUSB0 0.1sec x 5 det x 10 repeat = 5sec
     get_sensor_data(0, 2)       # 0.1sec x 5 det x 10 repeat = 5sec
     get_sensor_data(0, 3)       # 0.1sec x 5 det x 10 repeat = 5sec
     get_sensor_data(0, 4)       # 0.1sec x 5 det x 10 repeat = 5sec
-    get_sensor_data(0, 5)       # 0.1sec x 5 det x 10 repeat = 5sec
+    # get_sensor_data(0, 5)       # 0.1sec x 5 det x 10 repeat = 5sec
+    #get_sensor_data(0, 6)       # 0.1sec x 5 det x 10 repeat = 5sec
 
     ### for JNC
     #get_sensor_data(0, 1)       #ttyUSB0 COM3 for JNC
@@ -576,65 +575,183 @@ while True:
 
     # Time Check
     g_cur_time = time.time()
-    if( (g_cur_time - g_prev_time) > (60*60*24) ):
+    if( (g_cur_time - g_prev_time) > (60*60*6) ):
+    # if( (g_cur_time - g_prev_time) > (60*6) ):
         print ("Reset Timer")
-        g_max_sms_per_day = 0
-        # send_sms("RTU Alive")
-        payload = {"text": "RTU ALive"}
+        # 보낼 메시지
+        payload = {
+            "attachments": [
+                {
+                    "color": "#0000FF",  # 색상을 지정합니다. 여기서는 파란색으로 지정합니다.
+                    "title": "RTU ALIVE - 시흥160m 장비",
+                    "text": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(g_cur_time)),
+                }
+            ]
+        }
+        send_slack(payload)
 
-        # JSON으로 변환하여 POST 요청 보내기
-        response = requests.post(
-            webhook_url, data=json.dumps(payload), headers={"Content-Type": "application/json"}
-        )
         g_prev_time = copy.deepcopy(g_cur_time)
+
+        restart_code()
     else :
         print ("TIME : ", str(g_cur_time - g_prev_time))
 
-    if count >= TimeInterval or g_xml_send == 1:
-        print "########## URL1 ##########"
 
+    # 주기적으로 서버에 데이터 전송  (슬랙 X)
+    if count >= TimeInterval:
+        print "########## URL1 - only server ##########"
 
+        xml_result = xml_text_header
 
+        #for i in range(0, 1):  #max 1 channel
         for i in range(0, MAX_CH):  #max 5 channel
+            #for j in range(0, 3):  #max 3 detector
+            
             for j in range(0, MAX_DET):  #max 7 detector
-                try :
-                    ret = requests.post(url, data = g_xml_text[i][j], headers=headers, verify=False, timeout=3)
-                    ret.raise_for_status()
-                except requests.exceptions.HTTPError as errh:
-                    print "$$$$$$$$$$"
-                    print "Http Error:", errh
-                    print "$$$$$$$$$$"
-                    break
-                except requests.exceptions.ConnectionError as errc:
-                    print "$$$$$$$$$$"
-                    print "Error Connecting:", errc
-                    print "$$$$$$$$$$"
-                    break
-                except requests.exceptions.Timeout as errt:
-                    print "$$$$$$$$$$"
-                    print "Timeout Error:", errt
-                    print "$$$$$$$$$$"
-                    break
-                except requests.exceptions.RequestException as err:
-                    print "$$$$$$$$$$"
-                    print "Oops: Something Else:", err
-                    print "$$$$$$$$$$"
-                    break
+              xml_result += g_xml_text[i][j]
+        
+        try :
+            xml_result += xml_text_tail
+            ret = requests.post(url, data = xml_result, headers=headers, verify=False, timeout=3)
+            ret.raise_for_status()
+        except requests.exceptions.HTTPError as errh:
+            print "$$$$$$$$$$"
+            print "Http Error:", errh
+            print "$$$$$$$$$$"
+            break
+        except requests.exceptions.ConnectionError as errc:
+            print "$$$$$$$$$$"
+            print "Error Connecting:", errc
+            print "$$$$$$$$$$"
+            break
+        except requests.exceptions.Timeout as errt:
+            print "$$$$$$$$$$"
+            print "Timeout Error:", errt
+            print "$$$$$$$$$$"
+            break
+        except requests.exceptions.RequestException as err:
+            print "$$$$$$$$$$"
+            print "Oops: Something Else:", err
+            print "$$$$$$$$$$"
+            break
+        
+        print ret.text
 
-                print g_xml_text[i][j]
-                print ret.text
-
+        xml_result = ""
         count = 0
+
+    # status 변화 감지시 데이터 전송 (서버 + 슬랙)
+    if g_xml_send == 1:
+        print "########## URL1 - server + slack ##########"
+
+        xml_result = xml_text_header
+
+        #for i in range(0, 1):  #max 1 channel
+        for i in range(0, MAX_CH):  #max 5 channel
+
+            payload = {
+                    "attachments": [
+                        {
+                            "color": "#FF0000",  # 색상을 지정합니다. 여기서는 빨간색으로 지정합니다.
+                            "title": "이벤트 변경 - 시흥 160m 장비",  # 장비별 타이틀 다르게
+                            "text": g_xml_text[i][0] # 채널별 초기 세팅
+                        }
+                    ]
+                 }
+            
+            for j in range(0, MAX_DET):  #max 7 detector
+                xml_result += g_xml_text[i][j]
+                if j+1 < MAX_DET: 
+                        payload["attachments"][0]["text"] += str(g_xml_text[i][j+1])
+
+            # xml_text에서 데이터 추출
+            chnum_list, detnum_list, status_list = extract_data(payload["attachments"][0]["text"])
+
+            # 결과 출력
+            result = format_output(chnum_list, detnum_list, status_list)
+            
+            if g_prev_slack[i] == result:
+                continue
+            elif g_prev_slack[i] == "x":
+                g_prev_slack[i] = result
+                continue
+            else:
+                g_prev_slack[i] = result
+                payload["attachments"][0]["text"] = result
+                send_slack(payload)
+
+            # # status 2 체크
+            # if check_status_2(payload["attachments"][0]["text"]):
+            #     payload["attachments"][0]["text"] = result
+            #     send_slack(payload)
+
+        try :
+            xml_result += xml_text_tail
+            ret = requests.post(url, data = xml_result, headers=headers, verify=False, timeout=3)
+            ret.raise_for_status()
+        except requests.exceptions.HTTPError as errh:
+            print "$$$$$$$$$$"
+            print "Http Error:", errh
+            print "$$$$$$$$$$"
+            break
+        except requests.exceptions.ConnectionError as errc:
+            print "$$$$$$$$$$"
+            print "Error Connecting:", errc
+            print "$$$$$$$$$$"
+            break
+        except requests.exceptions.Timeout as errt:
+            print "$$$$$$$$$$"
+            print "Timeout Error:", errt
+            print "$$$$$$$$$$"
+            break
+        except requests.exceptions.RequestException as err:
+            print "$$$$$$$$$$"
+            print "Oops: Something Else:", err
+            print "$$$$$$$$$$"
+            break
+
+        print ret.text
+
+        xml_result = ""
         g_xml_send = 0
 
     #Clear xml_text(2021/7/28)
     clear_xml_text()
-    clear_g_sms_str()
     #make_xml_text(str(i+1), str(j+1), "0", "0", "2")
     print("2222222222222222222222222222222222222222222222222")
     print("*************************************************")
     print("*************************************************")
 
+#        print "########## URL2 ##########"
+#
+#        for i in range(0, 1):  #max 1 channel
+#            for j in range(0, 7):  #7 detector
+#                try :
+#                    ret = requests.post(url2, data = g_xml_text[i][j], headers=headers, verify=False, timeout=3)
+#                    ret.raise_for_status()
+#                except requests.exceptions.HTTPError as errh:
+#                    print "$$$$$$$$$$"
+#                    print "Http Error:", errh
+#                    print "$$$$$$$$$$"
+#                    break
+#                except requests.exceptions.ConnectionError as errc:
+#                    print "$$$$$$$$$$"
+#                    print "Error Connecting:", errc
+#                    print "$$$$$$$$$$"
+#                    break
+#                except requests.exceptions.Timeout as errt:
+#                    print "$$$$$$$$$$"
+#                    print "Timeout Error:", err
+#                    print "$$$$$$$$$$"
+#                    break
+#                except requests.exceptions.RequestException as err:
+#                    print "$$$$$$$$$$"
+#                    print "Oops: Something Else:", err
+#                    print "$$$$$$$$$$"
+#                    break
+#
+#                print g_xml_text[i][j]
+#                print ret.text
 
 
 
