@@ -562,8 +562,7 @@ def get_sensor_data(serial_ch, ch_num):
 
                 distance = get_distance(lc_hz)
                 #distance_str = str(distance) # for JNC
-                # distance_str = str(lc_hz) # for BECS
-                distance_str = str(min(lc_hz, g_distance_val[ch_num_int-1][det_num_int-1])) # 벡스랑 기본값 비교
+                distance_str = str(lc_hz) # for BECS
 
                 # # Set Default Value (bioptech 2023.4.18)
                 distance_str = g_distance_val[ch_num_int-1][det_num_int-1]
@@ -667,6 +666,7 @@ while True:
     else :
         print ("TIME : ", str(g_cur_time - g_prev_time))
 
+    # 프로그램 시작하자마자 보내고, count가 초기화(주기적으로 전송이 완료)되면 또 보냄
     if count == 1:
         ret_ok = send_request(xml_ok)
         if ret_ok:
@@ -688,10 +688,10 @@ while True:
         xml_result = ""
         count = 0
 
-        # 주기적으로 정상데이터 보내기
-        ret_ok = send_request(xml_ok)
-        if ret_ok:
-            print(ret_ok)
+        # # 주기적으로 정상데이터 보내기
+        # ret_ok = send_request(xml_ok)
+        # if ret_ok:
+        #     print(ret_ok)
 
     # status 변화 감지시 데이터 전송 (서버 + 슬랙)  
     if g_xml_send == 1:
