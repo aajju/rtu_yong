@@ -92,7 +92,7 @@ xml_ok =  (
 
 # Waiting count_times for valid status  (숫자체크 필요)
 MAX_DOUBLE_CHECK = 2   #60 
-TimeInterval = 450 # 얼마인지 체크 필요
+TimeInterval = 630 # 약 2시간30분주기
 
 
 

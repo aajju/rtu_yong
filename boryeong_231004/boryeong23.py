@@ -45,8 +45,8 @@ xml_ok = (
 ) % (siteId_string_ok, siteId_string_ok) # %s 개수 만큼 매개변수 추가
 
 # Waiting count_times for valid status  (숫자체크 필요)
-MAX_DOUBLE_CHECK = 2   #60 
-TimeInterval = 450 # 얼마인지 체크 필요
+MAX_DOUBLE_CHECK = 3   #
+TimeInterval = 670 # 약 2시간 30분 주
 
 
 
