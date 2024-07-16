@@ -13,12 +13,14 @@ import config
 
 
 # 이것만 바꾸면 됨
-siteId_string = "boryeong21"     # 실제 현장 데이터 보내는 곳(코위드원)
-siteId_string_ok = "boryeong11"  # 언제나 ok 보내야하는 현장
-python_file = "boryeong21.py"   # 파일명 동일하게 입력해야함
-site_korean = "보령 율암교"       # 슬랙메시지에 표현되는 문구
+siteId_string = "boryeong23"     # 실제 현장 데이터 보내는 곳(코위드원)
+siteId_string_ok = "boryeong13"  # 언제나 ok 보내야하는 현장
+python_file = "boryeong23.py"   # 파일명 동일하게 입력해야함
+site_korean = "보령 sk주유소"       # 슬랙메시지에 표현되는 문구
 MAX_CH = 2                  # 채널수(실제 장비에 물리는) DTX와 무관
 MAX_DET =2                  # 장비수(실제 장비 대수)  DTX와 무관
+#  아래 get_sensor_data(0, 1) 부분 채널수에 맞게 조절해야함         
+
 
 # ch2 & det1 환경 (채널수랑 장비수 다르면 수정필요)
 xml_ok = (                 
@@ -40,11 +42,11 @@ xml_ok = (
     "<btAmt>22.84</btAmt>"
     "</detector>"
     "</XML>"
-) % (siteId_string_ok, siteId_string_ok)
+) % (siteId_string_ok, siteId_string_ok) # %s 개수 만큼 매개변수 추가
 
 # Waiting count_times for valid status  (숫자체크 필요)
 MAX_DOUBLE_CHECK = 3   #
-TimeInterval = 670 # 약 2시간 30분 주기
+TimeInterval = 670 # 약 2시간 30분 주
 
 
 
@@ -526,7 +528,7 @@ def get_sensor_data(serial_ch, ch_num):
                     if g_double_check_count >= MAX_DOUBLE_CHECK :
                         if check_status_change(ch_num_int-1) == 1:          #if status change, xml transfer immediately
                             print ("CH : "+ch_num_str+"   ##### Status Change #####")
-                            g_xml_send = 0 # 1인데... 일부로 이벤트 안보내려고함
+                            g_xml_send = 1
                         else:
                             print ("                     $$$$$ Same Status $$$$$")
 

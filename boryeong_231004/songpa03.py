@@ -13,14 +13,14 @@ import config
 
 
 # 이것만 바꾸면 됨
-siteId_string = "boryeong21"     # 실제 현장 데이터 보내는 곳(코위드원)
-siteId_string_ok = "boryeong11"  # 언제나 ok 보내야하는 현장
-python_file = "boryeong21.py"   # 파일명 동일하게 입력해야함
-site_korean = "보령 율암교"       # 슬랙메시지에 표현되는 문구
-MAX_CH = 2                  # 채널수(실제 장비에 물리는) DTX와 무관
-MAX_DET =2                  # 장비수(실제 장비 대수)  DTX와 무관
+siteId_string = "songpa02"     # 실제 현장 데이터 보내는 곳(코위드원)
+siteId_string_ok = "songpa03"  # 언제나 ok 보내야하는 현장
+python_file = "songpa03.py"   # 파일명 동일하게 입력해야함
+site_korean = "송파현장"       # 슬랙메시지에 표현되는 문구
+MAX_CH = 1                  # 채널수(실제 장비에 물리는) DTX와 무관
+MAX_DET =3                  # 장비수(실제 장비 대수)  DTX와 무관
 
-# ch2 & det1 환경 (채널수랑 장비수 다르면 수정필요)
+# ch1 & det3 환경 (채널수랑 장비수 다르면 수정필요)
 xml_ok = (                 
     "xmlText=<XML>"
     "<detector>"
@@ -33,14 +33,22 @@ xml_ok = (
     "</detector>"
     "<detector>"
     "<siteId>%s</siteId>"
-    "<chNum>2</chNum>"
-    "<detNum>1</detNum>"
+    "<chNum>1</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>3</detNum>"
     "<status>1</status>"
     "<distance>0</distance>"
     "<btAmt>22.84</btAmt>"
     "</detector>"
     "</XML>"
-) % (siteId_string_ok, siteId_string_ok)
+) % (siteId_string_ok, siteId_string_ok, siteId_string_ok)
 
 # Waiting count_times for valid status  (숫자체크 필요)
 MAX_DOUBLE_CHECK = 3   #
@@ -75,45 +83,42 @@ SERIALPORT = ("/dev/ttyUSB0", "/dev/ttyUSB1", "/dev/ttyUSB2")   #tuple
 g_serial_port = ["ser1","ser2","ser3"]                          #list
 
 #CH x DET XML TEXT
-g_xml_text = [  ["ch1_det1", "ch1_det2", ], 
-                ["ch2_det1", "ch2_det2", ] 
+g_xml_text = [  ["ch1_det1", "ch1_det2", "ch1_det3"], 
+
                 ]
 
 #CH x DET Distance Data
-g_distance_val_old = [  ["ch1_det1", "ch1_det2", ], 
-                    ["ch2_det1", "ch2_det2", ] 
+g_distance_val_old = [  ["ch1_det1", "ch1_det2","ch1_det3" ], 
+    
                    ] 
-g_distance_val = [  ["0", "0",], 
-                    ["0", "0",] 
+g_distance_val = [  ["0", "0","0"], 
                    ] 
 
 #CH x DET Volt Data
-g_volt_val = [  ["ch1_det1", "ch1_det2", ], 
-                ["ch2_det1", "ch2_det2", ]  
+g_volt_val = [  ["ch1_det1", "ch1_det2","ch1_det3" ], 
+ 
                 ] 
 
 
 #CH x DET DC Volt Data
-g_dc_val =   [  ["ch1_det1", "ch1_det2", ], 
-                ["ch2_det1", "ch2_det2", ]  
+g_dc_val =   [  ["ch1_det1", "ch1_det2","ch1_det3" ], 
+ 
                ] 
 
 #CH x DET AC Volt Data
-g_ac_val =   [  ["ch1_det1", "ch1_det2", ], 
-                ["ch2_det1", "ch2_det2", ]  
+g_ac_val =   [  ["ch1_det1", "ch1_det2","ch1_det3" ], 
+ 
                ] 
 
 #CH x DET Status Data
-g_status_val = [["2", "2", ], 
-                ["2", "2", ] 
+g_status_val = [["2", "2","2" ], 
                 ]  
 
 #CH x DET Status Data Saved
-g_status_saved_val = [  ["2", "2", ], 
-                        ["2", "2", ] 
+g_status_saved_val = [  ["2", "2","2" ], 
                         ] 
 
-g_prev_slack = ["x","x"]  # 채널 개수만큼
+g_prev_slack = ["x"]  # 채널 개수만큼
 
 g_double_check_count = 0
 g_prev_time = 0
@@ -229,7 +234,7 @@ def get_distance(lc_hz):
 
 
 #XML Text Out
-def make_xml_text(ch_num, det_num, distance, volt, dc, ac, status):
+def make_xml_text(ch_num, det_num, distance, volt,  status):
     global siteId_string
     global g_xml_text
 
@@ -241,8 +246,8 @@ def make_xml_text(ch_num, det_num, distance, volt, dc, ac, status):
     xml_text_status = "<status>" + status + "</status>"
     xml_text_distance = "<distance>" + distance + "</distance>"
     xml_text_btAmt = "<btAmt>" + volt + "</btAmt>"
-    xml_text_dc = "<dc>" + dc + "</dc>"
-    xml_text_ac = "<ac>" + ac + "</ac>"
+    # xml_text_dc = "<dc>" + dc + "</dc>"
+    # xml_text_ac = "<ac>" + ac + "</ac>"
 
     xml_full_string =   xml_det_header + \
                         xml_text_siteId + \
@@ -251,9 +256,9 @@ def make_xml_text(ch_num, det_num, distance, volt, dc, ac, status):
                         xml_text_status + \
                         xml_text_distance + \
                         xml_text_btAmt + \
-                        xml_text_dc + \
-                        xml_text_ac + \
                         xml_det_tail
+                        # xml_text_dc + \
+                        # xml_text_ac + \
 
     g_xml_text[int(ch_num)-1][int(det_num)-1] = xml_full_string
 
@@ -330,7 +335,7 @@ def send_request(data):
 def clear_xml_text():
     for i in range(0, MAX_CH):
         for j in range(0, MAX_DET):
-            make_xml_text(str(i+1), str(j+1), "0", "0", "0", "0", "2")
+            make_xml_text(str(i+1), str(j+1), "0", "0", "2")
     
     print ("1111111111111111111111111111111111111111111111111")
     print ("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
@@ -349,8 +354,7 @@ def is_integer(n) :
 ### check data format integrity
 def check_integrity(data):
 
-    #if(len(data) != 26) :  #ORG Detector Data
-    if(len(data) != 41) :   #New Becs Detector Data Added(Volotage Level) 2022.9.29
+    if(len(data) != 26) :
         print ("Serial Data Length Check Fail")
         return False
     if ((data[3] != ",") or (data[6] != ",") or (data[17] != ",") or (data[21] != ".")) :
@@ -368,9 +372,9 @@ def check_integrity(data):
     if ((int(data[4:6]) < 1) or (int(data[4:6]) > 10)) :
         print ("Detector Number range is over")
         return False
-    # if (is_integer(data[7:17]) != True) :
-    #     print ("Distance Number is not Integer")
-    #     return False
+    if (is_integer(data[7:17]) != True) :
+        print ("Distance Number is not Integer")
+        return False
     if ((is_integer(data[18:21]) != True) or (is_integer(data[22:24]) != True)) :
         print ("Voltage Number is not Integer")
         return False
@@ -419,17 +423,18 @@ def get_sensor_data(serial_ch, ch_num):
                     time.sleep(0.5)
                     local_count = local_count + 1
                     print ("Not response : "+str(local_count) +"," + str(g_slack_err_count))
-                    if (local_count == 9 and g_slack_err_count <5):
+                    if (local_count == 9 and g_slack_err_count <2):
                         g_slack_err_count += 1
                         payload = {
                             "attachments": [
                                 {
                                     "color": "#FF00FF",  # 색상을 지정합니다. 여기서는 보라색으로 지정합니다.
                                     "title": "장비 문제 - " + site_korean,
-                                    "text": "Not response : "+ str(g_slack_err_count) + " - 5번까지 출력",
+                                    "text": "Not response : "+ str(g_slack_err_count) + " - 2번까지 출력",
                                 }
                             ]
                         }
+                        print (payload)
                         send_slack(payload)
                         
 
@@ -515,7 +520,7 @@ def get_sensor_data(serial_ch, ch_num):
 
                 #ch_num = 1, det_num = 0 : Start
                 if det_num_int > 0:
-                    make_xml_text(ch_num_str, det_num_str, distance_str, volt_str, dc_str, ac_str, "1")
+                    make_xml_text(ch_num_str, det_num_str, distance_str, volt_str,   "1")
 
                 time.sleep(0.3)
 
@@ -559,21 +564,21 @@ clear_xml_text()
 while True:
     ##### ttyUSB0 #####
     ### for BECS
-    get_sensor_data(0, 1)       #ttyUSB0 0.1sec x 5 det x 10 repeat = 5sec
-    get_sensor_data(0, 2)       # 0.1sec x 5 det x 10 repeat = 5sec
+    # get_sensor_data(0, 1)       #ttyUSB0 0.1sec x 5 det x 10 repeat = 5sec
+    # get_sensor_data(0, 2)       # 0.1sec x 5 det x 10 repeat = 5sec
     #get_sensor_data(0, 3)       # 0.1sec x 5 det x 10 repeat = 5sec
     #get_sensor_data(0, 4)       # 0.1sec x 5 det x 10 repeat = 5sec
     # get_sensor_data(0, 5)       # 0.1sec x 5 det x 10 repeat = 5sec
     #get_sensor_data(0, 6)       # 0.1sec x 5 det x 10 repeat = 5sec
 
     ### for JNC
-    #get_sensor_data(0, 1)       #ttyUSB0 COM3 for JNC
+    get_sensor_data(0, 1)       #ttyUSB0 COM3 for JNC
     #get_sensor_data(0, 2)       #ttyUSB0 COM4 for JNC
 
-    #get_sensor_data(1, 1)       #ttyUSB1
+    # get_sensor_data(1, 1)       #ttyUSB1
     #get_sensor_data(1, 2)
 
-    #get_sensor_data(2, 1)       #ttyUSB2
+    # get_sensor_data(2, 1)       #ttyUSB2
     #get_sensor_data(2, 2)
 
     count = count + 1

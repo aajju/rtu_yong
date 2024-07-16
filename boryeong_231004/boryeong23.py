@@ -19,8 +19,6 @@ python_file = "boryeong23.py"   # 파일명 동일하게 입력해야함
 site_korean = "보령 sk주유소"       # 슬랙메시지에 표현되는 문구
 MAX_CH = 2                  # 채널수(실제 장비에 물리는) DTX와 무관
 MAX_DET =2                  # 장비수(실제 장비 대수)  DTX와 무관
-#  아래 get_sensor_data(0, 1) 부분 채널수에 맞게 조절해야함         
-
 
 # ch2 & det1 환경 (채널수랑 장비수 다르면 수정필요)
 xml_ok = (                 
@@ -42,11 +40,11 @@ xml_ok = (
     "<btAmt>22.84</btAmt>"
     "</detector>"
     "</XML>"
-) % (siteId_string_ok, siteId_string_ok) # %s 개수 만큼 매개변수 추가
+) % (siteId_string_ok, siteId_string_ok)
 
 # Waiting count_times for valid status  (숫자체크 필요)
 MAX_DOUBLE_CHECK = 3   #
-TimeInterval = 670 # 약 2시간 30분 주
+TimeInterval = 670 # 약 2시간 30분 주기
 
 
 
@@ -528,7 +526,7 @@ def get_sensor_data(serial_ch, ch_num):
                     if g_double_check_count >= MAX_DOUBLE_CHECK :
                         if check_status_change(ch_num_int-1) == 1:          #if status change, xml transfer immediately
                             print ("CH : "+ch_num_str+"   ##### Status Change #####")
-                            g_xml_send = 1
+                            g_xml_send = 0 # 1인데... 일부로 이벤트 안보내려고함
                         else:
                             print ("                     $$$$$ Same Status $$$$$")
 
@@ -682,7 +680,7 @@ while True:
 
 
         xml_result += xml_text_tail
-        ret = send_request(xml_result)
+        # ret = send_request(xml_result)
         if ret:
             print(ret)
         xml_result = ""
