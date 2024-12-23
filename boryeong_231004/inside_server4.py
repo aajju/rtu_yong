@@ -5,6 +5,59 @@ import requests
 import time
 from datetime import datetime
 
+site_id_ilsan02 = "ilsan02"
+xml_ok_ilsan02= (
+    "xmlText=<XML>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>3</detNum>"
+    "<status>2</status>"
+    "<distance>0</distance>"
+    "<btAmt>0</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>3</detNum>"
+    "<status>2</status>"
+    "<distance>0</distance>"
+    "<btAmt>0</btAmt>"
+    "</detector>"
+    "</XML>"
+) % (site_id_ilsan02, site_id_ilsan02, site_id_ilsan02, site_id_ilsan02, site_id_ilsan02, site_id_ilsan02)
 
 site_id_siheung01 = "siheung01"  # 시흥
 xml_ok_siheung01 =  (
@@ -313,12 +366,14 @@ def send_data_to_server(data, site_id):
 
 
 if __name__ == "__main__":
-    data_list = [(xml_ok_boryeong11, site_id_boryeong11),
+    data_list = [(xml_ok_ilsan02, site_id_ilsan02),
+                 (xml_ok_boryeong11, site_id_boryeong11),
                  (xml_ok_boryeong12, site_id_boryeong12),
                  (xml_ok_boryeong13, site_id_boryeong13),
                  (xml_ok_boryeong14, site_id_boryeong14),
                  (xml_ok_songpa03, site_id_songpa03),
-                 (xml_ok_siheung01, site_id_siheung01)]
+                 (xml_ok_siheung01, site_id_siheung01),
+                 ]
 
     while True:
         for data in data_list:
