@@ -5,6 +5,101 @@ import requests
 import time
 from datetime import datetime
 
+# 부산(금호) 추가  250212
+site_id_busan01 = "busan01" # 오수 장비2, 채널2
+xml_ok_busan01=(
+    "xmlText=<XML>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "</XML>"
+) % (site_id_busan01, site_id_busan01, site_id_busan01, site_id_busan01)
+
+
+site_id_busan02 = "busan02" # 상수 장비2, 채널3
+xml_ok_busan02 = (
+    "xmlText=<XML>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>3</chNum>"
+    "<detNum>1</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>1</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>2</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "<detector>"
+    "<siteId>%s</siteId>"
+    "<chNum>3</chNum>"
+    "<detNum>2</detNum>"
+    "<status>1</status>"
+    "<distance>0</distance>"
+    "<btAmt>22.84</btAmt>"
+    "</detector>"
+    "</XML>"
+) % (site_id_busan02, site_id_busan02, site_id_busan02, site_id_busan02, site_id_busan02, site_id_busan02)
+
+
 # 남양주 추가(6-7구간 에러)
 site_id_namyangju02 = "namyangju02"  # 채널1, 장비7
 xml_ok_namyangju02 = (                 
@@ -159,7 +254,7 @@ xml_ok_buyeo01 =  (
 ) % (site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01,site_id_buyeo01)
 
 
-site_id_ilsan02 = "ilsan02"
+site_id_ilsan02 = "ilsan02"  # 장비3대, 채널2개.  2~3구간 시공전
 xml_ok_ilsan02= (
     "xmlText=<XML>"
     "<detector>"
@@ -213,7 +308,7 @@ xml_ok_ilsan02= (
     "</XML>"
 ) % (site_id_ilsan02, site_id_ilsan02, site_id_ilsan02, site_id_ilsan02, site_id_ilsan02, site_id_ilsan02)
 
-site_id_siheung01 = "siheung01"  # 시흥
+site_id_siheung01 = "siheung01"  # 시흥   장비2, 채널4
 xml_ok_siheung01 =  (
     "xmlText=<XML>"
     "<detector>"
@@ -522,6 +617,8 @@ def send_data_to_server(data, site_id):
 if __name__ == "__main__":
     data_list = [(xml_ok_ilsan02, site_id_ilsan02),
                  (xml_ok_namyangju02, site_id_namyangju02),
+                 (xml_ok_busan01, site_id_busan01),
+                 (xml_ok_busan02, site_id_busan02),
                  (xml_ok_buyeo01, site_id_buyeo01),
                  (xml_ok_boryeong11, site_id_boryeong11),
                  (xml_ok_boryeong12, site_id_boryeong12),
